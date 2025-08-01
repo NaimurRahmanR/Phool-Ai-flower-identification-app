@@ -124,14 +124,9 @@ function App() {
       const currentUrl = window.location.origin;
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(currentUrl)}`;
       console.log('Attempting login redirect to:', authUrl);
-      console.log('Current URL for localhost check:', currentUrl);
-      
-      // TEMPORARY TEST: Force localhost behavior for testing
-      const isLocalhost = currentUrl.includes('localhost') || true; // Force true for testing
       
       // For localhost, show deployment message
-      if (isLocalhost) {
-        console.log('Localhost detected (or forced for testing), showing error message');
+      if (currentUrl.includes('localhost')) {
         setError('⚠️ Login requires HTTPS deployment. Click "Deploy" button in Emergent to test authentication with a live HTTPS URL.');
         return;
       }
