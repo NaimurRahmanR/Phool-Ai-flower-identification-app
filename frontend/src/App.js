@@ -45,8 +45,11 @@ function App() {
   useEffect(() => {
     const handleAuthCallback = () => {
       const fragment = window.location.hash;
+      console.log('Current URL fragment:', fragment);
+      
       if (fragment.includes('session_id=')) {
         const sessionId = fragment.split('session_id=')[1].split('&')[0];
+        console.log('Found session ID:', sessionId);
         authenticateWithSession(sessionId);
         // Clear the fragment
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -54,6 +57,10 @@ function App() {
     };
 
     handleAuthCallback();
+    
+    // Also listen for hash changes
+    window.addEventListener('hashchange', handleAuthCallback);
+    return () => window.removeEventListener('hashchange', handleAuthCallback);
   }, []);
 
   // Splash screen timeout
