@@ -89,6 +89,7 @@ function App() {
   };
 
   const authenticateWithSession = async (sessionId) => {
+    console.log('Authenticating with session ID:', sessionId);
     try {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/profile`, {
         method: 'POST',
@@ -98,17 +99,23 @@ function App() {
         body: JSON.stringify({ session_id: sessionId })
       });
 
+      console.log('Auth response status:', response.status);
+
       if (response.ok) {
         const authData = await response.json();
+        console.log('Authentication successful:', authData.user);
         setUser(authData.user);
         setSessionToken(authData.session_token);
         localStorage.setItem('phool-session-token', authData.session_token);
+        setError(null); // Clear any previous errors
       } else {
-        setError('Authentication failed');
+        const errorData = await response.text();
+        console.error('Authentication failed:', errorData);
+        setError('Authentication failed. Please try again.');
       }
     } catch (error) {
-      setError('Authentication error');
       console.error('Authentication error:', error);
+      setError('Authentication error. Please check your connection.');
     }
   };
 
