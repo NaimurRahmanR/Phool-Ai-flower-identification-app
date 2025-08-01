@@ -196,111 +196,174 @@ function App() {
 
   const startCamera = async () => {
     setCameraError(null);
-    
-    // Check if we're on HTTP (localhost/development)
-    if (window.location.protocol === 'http:' && !window.location.hostname.includes('localhost')) {
-      setCameraError('Camera requires HTTPS. Please deploy the app to use camera functionality.');
-      return;
-    }
+    console.log('Starting camera with improved error handling...');
     
     // Check if browser supports getUserMedia
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError('Camera not supported in this browser. Please try a modern browser like Chrome, Firefox, or Safari.');
+      setCameraError('📷 Camera not supported in this browser. Please use Chrome, Firefox, Safari, or Edge.');
       return;
     }
     
+    // Check available devices first
     try {
-      console.log('Requesting camera access...');
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log('Available video devices:', videoDevices.length);
       
-      // First try to get simple camera access
-      let constraints = {
+      if (videoDevices.length === 0) {
+        setCameraError('📷 No camera found on this device. Please use the "Upload Image" option to identify flowers from your photo gallery.');
+        return;
+      }
+    } catch (enumError) {
+      console.log('Could not enumerate devices:', enumError);
+      // Continue anyway, as some browsers don't support enumeration
+    }
+    
+    // Try progressively simpler camera constraints
+    const constraintOptions = [
+      // Try rear camera first (mobile)
+      {
         video: {
+          facingMode: { ideal: 'environment' },
           width: { ideal: 1280, max: 1920 },
           height: { ideal: 720, max: 1080 }
         }
-      };
-      
-      // For mobile devices, prefer rear camera
-      if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-        constraints.video.facingMode = { ideal: 'environment' };
-      }
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('Camera access granted');
-      
-      setStream(mediaStream);
-      setIsCameraMode(true);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+      },
+      // Try any camera with preferred resolution
+      {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      },
+      // Try any camera with basic resolution
+      {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        }
+      },
+      // Try any available camera
+      { video: true }
+    ];
+    
+    for (let i = 0; i < constraintOptions.length; i++) {
+      try {
+        console.log(`Trying camera constraints option ${i + 1}:`, constraintOptions[i]);
         
-        // Handle video loading
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play().catch(playError => {
-            console.error('Video play error:', playError);
-            setCameraError('Unable to display camera feed. Please try again.');
-          });
-        };
+        const mediaStream = await navigator.mediaDevices.getUserMedia(constraintOptions[i]);
+        console.log('Camera access granted with constraints:', constraintOptions[i]);
         
-        // Handle video errors
-        videoRef.current.onerror = (videoError) => {
-          console.error('Video element error:', videoError);
-          setCameraError('Camera display error. Please refresh and try again.');
-        };
-      }
-      
-    } catch (error) {
-      console.error('Camera error:', error);
-      let errorMessage = 'Unable to access camera. ';
-      
-      // Specific error handling
-      switch (error.name) {
-        case 'NotAllowedError':
-        case 'PermissionDeniedError':
-          errorMessage = '📷 Camera permission denied. Please:\n1. Click the camera icon in your browser address bar\n2. Allow camera access\n3. Refresh the page and try again';
-          break;
-        case 'NotFoundError':
-        case 'DevicesNotFoundError':
-          errorMessage = '📷 No camera found on this device. Please connect a camera and try again.';
-          break;
-        case 'NotReadableError':
-        case 'TrackStartError':
-          errorMessage = '📷 Camera in use by another app. Please close other apps using the camera and try again.';
-          break;
-        case 'OverconstrainedError':
-        case 'ConstraintNotSatisfiedError':
-          // Try again with simpler constraints
-          try {
-            console.log('Retrying with basic constraints...');
-            const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            setStream(basicStream);
-            setIsCameraMode(true);
-            if (videoRef.current) {
-              videoRef.current.srcObject = basicStream;
-              videoRef.current.onloadedmetadata = () => {
-                videoRef.current.play();
-              };
+        // Success! Set up the video stream
+        setStream(mediaStream);
+        setIsCameraMode(true);
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          
+          // Handle video loading with better error handling
+          const handleVideoLoad = () => {
+            videoRef.current.play().catch(playError => {
+              console.error('Video play error:', playError);
+              setCameraError('📷 Unable to display camera feed. Please refresh and try again.');
+              stopCamera();
+            });
+          };
+          
+          const handleVideoError = (videoError) => {
+            console.error('Video element error:', videoError);
+            setCameraError('📷 Camera display error. Please refresh and try again.');
+            stopCamera();
+          };
+          
+          videoRef.current.onloadedmetadata = handleVideoLoad;
+          videoRef.current.onerror = handleVideoError;
+          
+          // Timeout if video doesn't load within 10 seconds
+          setTimeout(() => {
+            if (videoRef.current && videoRef.current.readyState === 0) {
+              setCameraError('📷 Camera loading timeout. Please try again or use "Upload Image" instead.');
+              stopCamera();
             }
-            return;
-          } catch (retryError) {
-            errorMessage = '📷 Camera not compatible with requested settings. Basic camera access failed.';
+          }, 10000);
+        }
+        
+        return; // Success, exit the function
+        
+      } catch (error) {
+        console.log(`Camera constraints option ${i + 1} failed:`, error.name, error.message);
+        
+        // If this is the last option, handle the error
+        if (i === constraintOptions.length - 1) {
+          console.error('All camera constraints failed. Final error:', error);
+          
+          let errorMessage = '📷 Unable to access camera. ';
+          
+          switch (error.name) {
+            case 'NotAllowedError':
+            case 'PermissionDeniedError':
+              errorMessage = '📷 Camera permission denied.\n\n' +
+                '✅ To fix this:\n' +
+                '1. Look for a camera icon in your browser address bar\n' +
+                '2. Click it and select "Always allow camera access"\n' +
+                '3. Refresh the page and try again\n\n' +
+                '💡 Or use "Upload Image" to identify flowers from your gallery.';
+              break;
+              
+            case 'NotFoundError':
+            case 'DevicesNotFoundError':
+              errorMessage = '📷 No camera detected on this device.\n\n' +
+                '✅ What you can do:\n' +
+                '• Use "Upload Image" to identify flowers from your photo gallery\n' +
+                '• Try on a different device with a camera\n' +
+                '• Check if your camera is being used by another app';
+              break;
+              
+            case 'NotReadableError':
+            case 'TrackStartError':
+              errorMessage = '📷 Camera is currently in use.\n\n' +
+                '✅ To fix this:\n' +
+                '1. Close other apps that might be using the camera\n' +
+                '2. Close other browser tabs with camera access\n' +
+                '3. Try again\n\n' +
+                '💡 Or use "Upload Image" as an alternative.';
+              break;
+              
+            case 'OverconstrainedError':
+            case 'ConstraintNotSatisfiedError':
+              errorMessage = '📷 Camera configuration issue.\n\n' +
+                '✅ This usually resolves by:\n' +
+                '1. Refreshing the page\n' +
+                '2. Trying again\n' +
+                '3. Using "Upload Image" instead';
+              break;
+              
+            case 'NotSupportedError':
+              errorMessage = '📷 Camera not supported in this browser.\n\n' +
+                '✅ Please try:\n' +
+                '• Chrome, Firefox, Safari, or Edge browser\n' +
+                '• Use "Upload Image" to identify flowers from your gallery';
+              break;
+              
+            case 'SecurityError':
+              errorMessage = '📷 Camera blocked by security settings.\n\n' +
+                '✅ This might help:\n' +
+                '1. Make sure you\'re using HTTPS (secure connection)\n' +
+                '2. Check browser camera permissions\n' +
+                '3. Use "Upload Image" as an alternative';
+              break;
+              
+            default:
+              errorMessage = `📷 Camera error: ${error.message || 'Unknown error'}\n\n` +
+                '✅ Please:\n' +
+                '1. Refresh the page and try again\n' +
+                '2. Use "Upload Image" to identify flowers from your gallery\n' +
+                '3. Try on a different device if the issue persists';
           }
-          break;
-        case 'NotSupportedError':
-          errorMessage = '📷 Camera not supported in this browser. Please use Chrome, Firefox, Safari, or Edge.';
-          break;
-        case 'SecurityError':
-          errorMessage = '📷 Camera blocked by security settings. Please use HTTPS or enable camera in browser settings.';
-          break;
-        default:
-          if (window.location.protocol === 'http:') {
-            errorMessage = '📷 Camera requires HTTPS for security. Please:\n1. Deploy the app using the "Deploy" button\n2. Access via the HTTPS URL provided\n3. Camera will work on the deployed version';
-          } else {
-            errorMessage = `📷 Camera error: ${error.message || 'Unknown error'}. Please refresh and try again.`;
-          }
+          
+          setCameraError(errorMessage);
+        }
       }
-      
-      setCameraError(errorMessage);
     }
   };
 
