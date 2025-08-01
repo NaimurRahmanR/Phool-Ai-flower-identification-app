@@ -10,6 +10,10 @@ from pydantic import BaseModel
 from typing import Optional, List
 import tempfile
 import json
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI()
