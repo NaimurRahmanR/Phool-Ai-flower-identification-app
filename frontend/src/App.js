@@ -120,10 +120,28 @@ function App() {
   };
 
   const handleLogin = () => {
-    const currentUrl = window.location.origin;
-    const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(currentUrl)}`;
-    console.log('Redirecting to:', authUrl);
-    window.location.href = authUrl;
+    try {
+      const currentUrl = window.location.origin;
+      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(currentUrl)}`;
+      console.log('Redirecting to:', authUrl);
+      
+      // Check if we can redirect
+      if (typeof window !== 'undefined') {
+        // For development/testing, show a friendly message
+        if (currentUrl.includes('localhost')) {
+          setError('Login functionality requires HTTPS deployment. Please deploy the app to test authentication.');
+          return;
+        }
+        
+        // Try to redirect
+        window.location.href = authUrl;
+      } else {
+        setError('Unable to redirect for login. Please try again.');
+      }
+    } catch (error) {
+      console.error('Login redirect error:', error);
+      setError('Login error. Please try again or contact support.');
+    }
   };
 
   const handleLogout = async () => {
