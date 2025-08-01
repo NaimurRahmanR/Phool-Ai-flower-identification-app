@@ -196,39 +196,108 @@ function App() {
 
   const startCamera = async () => {
     setCameraError(null);
+    
+    // Check if we're on HTTP (localhost/development)
+    if (window.location.protocol === 'http:' && !window.location.hostname.includes('localhost')) {
+      setCameraError('Camera requires HTTPS. Please deploy the app to use camera functionality.');
+      return;
+    }
+    
+    // Check if browser supports getUserMedia
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Camera not supported in this browser. Please try a modern browser like Chrome, Firefox, or Safari.');
+      return;
+    }
+    
     try {
-      // Check for mobile devices and request rear camera
-      const constraints = {
+      console.log('Requesting camera access...');
+      
+      // First try to get simple camera access
+      let constraints = {
         video: {
-          facingMode: { ideal: 'environment' }, // Prefer rear camera
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 }
         }
       };
+      
+      // For mobile devices, prefer rear camera
+      if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        constraints.video.facingMode = { ideal: 'environment' };
+      }
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Camera access granted');
+      
       setStream(mediaStream);
       setIsCameraMode(true);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // Wait for video to load
+        
+        // Handle video loading
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play();
+          videoRef.current.play().catch(playError => {
+            console.error('Video play error:', playError);
+            setCameraError('Unable to display camera feed. Please try again.');
+          });
+        };
+        
+        // Handle video errors
+        videoRef.current.onerror = (videoError) => {
+          console.error('Video element error:', videoError);
+          setCameraError('Camera display error. Please refresh and try again.');
         };
       }
+      
     } catch (error) {
       console.error('Camera error:', error);
       let errorMessage = 'Unable to access camera. ';
       
-      if (error.name === 'NotAllowedError') {
-        errorMessage += 'Please allow camera permissions and try again.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage += 'No camera found on this device.';
-      } else if (error.name === 'NotSupportedError') {
-        errorMessage += 'Camera not supported in this browser.';
-      } else {
-        errorMessage += 'Please ensure you are using HTTPS and camera permissions are granted.';
+      // Specific error handling
+      switch (error.name) {
+        case 'NotAllowedError':
+        case 'PermissionDeniedError':
+          errorMessage = '📷 Camera permission denied. Please:\n1. Click the camera icon in your browser address bar\n2. Allow camera access\n3. Refresh the page and try again';
+          break;
+        case 'NotFoundError':
+        case 'DevicesNotFoundError':
+          errorMessage = '📷 No camera found on this device. Please connect a camera and try again.';
+          break;
+        case 'NotReadableError':
+        case 'TrackStartError':
+          errorMessage = '📷 Camera in use by another app. Please close other apps using the camera and try again.';
+          break;
+        case 'OverconstrainedError':
+        case 'ConstraintNotSatisfiedError':
+          // Try again with simpler constraints
+          try {
+            console.log('Retrying with basic constraints...');
+            const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            setStream(basicStream);
+            setIsCameraMode(true);
+            if (videoRef.current) {
+              videoRef.current.srcObject = basicStream;
+              videoRef.current.onloadedmetadata = () => {
+                videoRef.current.play();
+              };
+            }
+            return;
+          } catch (retryError) {
+            errorMessage = '📷 Camera not compatible with requested settings. Basic camera access failed.';
+          }
+          break;
+        case 'NotSupportedError':
+          errorMessage = '📷 Camera not supported in this browser. Please use Chrome, Firefox, Safari, or Edge.';
+          break;
+        case 'SecurityError':
+          errorMessage = '📷 Camera blocked by security settings. Please use HTTPS or enable camera in browser settings.';
+          break;
+        default:
+          if (window.location.protocol === 'http:') {
+            errorMessage = '📷 Camera requires HTTPS for security. Please:\n1. Deploy the app using the "Deploy" button\n2. Access via the HTTPS URL provided\n3. Camera will work on the deployed version';
+          } else {
+            errorMessage = `📷 Camera error: ${error.message || 'Unknown error'}. Please refresh and try again.`;
+          }
       }
       
       setCameraError(errorMessage);
