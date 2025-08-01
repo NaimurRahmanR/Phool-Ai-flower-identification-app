@@ -108,6 +108,7 @@ function App() {
   const handleLogin = () => {
     const currentUrl = window.location.origin;
     const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(currentUrl)}`;
+    console.log('Redirecting to:', authUrl);
     window.location.href = authUrl;
   };
 
