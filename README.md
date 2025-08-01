@@ -22,7 +22,7 @@ A beautiful, AI-powered Progressive Web App for identifying flowers and discover
 
 ## 🚀 Live Demo
 
-- **Web App**: [Your deployed URL here]
+- **Web App**: https://flower-scanner-1.emergent.host/
 - **PWA Installation**: Visit the web app on mobile and tap "Add to Home Screen"
 
 ## 🛠️ Tech Stack
