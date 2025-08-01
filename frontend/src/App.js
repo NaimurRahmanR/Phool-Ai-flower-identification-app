@@ -4,7 +4,7 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Badge } from './components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
-import { Camera, Upload, History, Flower, Loader2, ChevronLeft } from 'lucide-react';
+import { Camera, Upload, History, Flower, Loader2, ChevronLeft, User, LogOut } from 'lucide-react';
 
 function App() {
   const [currentView, setCurrentView] = useState('splash');
@@ -13,17 +13,26 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [identificationHistory, setIdentificationHistory] = useState([]);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+  const [sessionToken, setSessionToken] = useState(null);
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [isCameraMode, setIsCameraMode] = useState(false);
   const [stream, setStream] = useState(null);
+  const [cameraError, setCameraError] = useState(null);
 
-  // Load history from local storage on component mount
+  // Load history and auth data from local storage on component mount
   useEffect(() => {
     const savedHistory = localStorage.getItem('phool-history');
     if (savedHistory) {
       setIdentificationHistory(JSON.parse(savedHistory));
+    }
+    
+    const savedSessionToken = localStorage.getItem('phool-session-token');
+    if (savedSessionToken) {
+      setSessionToken(savedSessionToken);
+      fetchUserProfile(savedSessionToken);
     }
   }, []);
 
@@ -31,6 +40,21 @@ function App() {
   useEffect(() => {
     localStorage.setItem('phool-history', JSON.stringify(identificationHistory));
   }, [identificationHistory]);
+
+  // Parse URL fragment for authentication callback
+  useEffect(() => {
+    const handleAuthCallback = () => {
+      const fragment = window.location.hash;
+      if (fragment.includes('session_id=')) {
+        const sessionId = fragment.split('session_id=')[1].split('&')[0];
+        authenticateWithSession(sessionId);
+        // Clear the fragment
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    handleAuthCallback();
+  }, []);
 
   // Splash screen timeout
   useEffect(() => {
@@ -40,18 +64,110 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  const startCamera = async () => {
+  const fetchUserProfile = async (token) => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user/profile`, {
+        headers: {
+          'X-Session-ID': token
+        }
       });
-      setStream(mediaStream);
-      setIsCameraMode(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
       }
     } catch (error) {
-      setError('Unable to access camera. Please ensure camera permissions are granted.');
+      console.error('Failed to fetch user profile:', error);
+    }
+  };
+
+  const authenticateWithSession = async (sessionId) => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ session_id: sessionId })
+      });
+
+      if (response.ok) {
+        const authData = await response.json();
+        setUser(authData.user);
+        setSessionToken(authData.session_token);
+        localStorage.setItem('phool-session-token', authData.session_token);
+      } else {
+        setError('Authentication failed');
+      }
+    } catch (error) {
+      setError('Authentication error');
+      console.error('Authentication error:', error);
+    }
+  };
+
+  const handleLogin = () => {
+    const currentUrl = window.location.origin;
+    const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(currentUrl)}`;
+    window.location.href = authUrl;
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (sessionToken) {
+        await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/logout`, {
+          method: 'POST',
+          headers: {
+            'X-Session-ID': sessionToken
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setSessionToken(null);
+      localStorage.removeItem('phool-session-token');
+    }
+  };
+
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      // Check for mobile devices and request rear camera
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' }, // Prefer rear camera
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      setIsCameraMode(true);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        // Wait for video to load
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play();
+        };
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+      let errorMessage = 'Unable to access camera. ';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Please allow camera permissions and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No camera found on this device.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage += 'Camera not supported in this browser.';
+      } else {
+        errorMessage += 'Please ensure you are using HTTPS and camera permissions are granted.';
+      }
+      
+      setCameraError(errorMessage);
     }
   };
 
@@ -61,6 +177,7 @@ function App() {
       setStream(null);
     }
     setIsCameraMode(false);
+    setCameraError(null);
   };
 
   const capturePhoto = () => {
@@ -108,8 +225,14 @@ function App() {
       const formData = new FormData();
       formData.append('file', selectedImage.file);
 
+      const headers = {};
+      if (sessionToken) {
+        headers['X-Session-ID'] = sessionToken;
+      }
+
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/identify-flower`, {
         method: 'POST',
+        headers,
         body: formData,
       });
 
@@ -224,14 +347,39 @@ function App() {
             <Flower size={32} />
             <h1>Phool</h1>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setCurrentView('history')}
-            className="history-btn"
-          >
-            <History size={18} />
-            History
-          </Button>
+          <div className="header-actions">
+            {user ? (
+              <div className="user-menu">
+                <div className="user-info">
+                  <img src={user.picture} alt={user.name} className="user-avatar" />
+                  <span className="user-name">{user.name}</span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  onClick={handleLogout}
+                  className="logout-btn"
+                >
+                  <LogOut size={18} />
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                onClick={handleLogin}
+                className="login-btn"
+              >
+                <User size={18} />
+                Login
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              onClick={() => setCurrentView('history')}
+              className="history-btn"
+            >
+              <History size={18} />
+              History
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -267,6 +415,7 @@ function App() {
               ref={fileInputRef}
               onChange={handleFileSelect}
               accept="image/*"
+              capture="environment"
               style={{ display: 'none' }}
             />
           </div>
@@ -274,24 +423,36 @@ function App() {
 
         {isCameraMode && (
           <div className="camera-section">
-            <div className="camera-container">
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                className="camera-video"
-              />
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
-            </div>
-            
-            <div className="camera-controls">
-              <Button variant="outline" onClick={stopCamera}>
-                Cancel
-              </Button>
-              <Button onClick={capturePhoto} className="capture-btn">
-                Capture
-              </Button>
-            </div>
+            {cameraError ? (
+              <div className="camera-error">
+                <p>{cameraError}</p>
+                <Button onClick={stopCamera} variant="outline">
+                  Back to Upload
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="camera-container">
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted
+                    className="camera-video"
+                  />
+                  <canvas ref={canvasRef} style={{ display: 'none' }} />
+                </div>
+                
+                <div className="camera-controls">
+                  <Button variant="outline" onClick={stopCamera}>
+                    Cancel
+                  </Button>
+                  <Button onClick={capturePhoto} className="capture-btn">
+                    Capture
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

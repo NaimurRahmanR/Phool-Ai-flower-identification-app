@@ -118,6 +118,54 @@ body {
   font-weight: 700;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  color: var(--flower-text);
+}
+
+.login-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--flower-gradient);
+  color: var(--flower-white);
+  border: none;
+}
+
+.login-btn:hover {
+  opacity: 0.9;
+}
+
+.logout-btn {
+  color: var(--flower-text-light);
+  padding: 0.5rem;
+}
+
 .history-btn {
   display: flex;
   align-items: center;
@@ -214,6 +262,16 @@ body {
   width: 100%;
   height: auto;
   display: block;
+  max-height: 400px;
+  object-fit: cover;
+}
+
+.camera-error {
+  padding: 2rem;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 15px;
+  margin-bottom: 2rem;
 }
 
 .camera-controls {
@@ -249,6 +307,8 @@ body {
   width: 100%;
   height: auto;
   display: block;
+  max-height: 400px;
+  object-fit: cover;
 }
 
 .preview-actions {
@@ -407,6 +467,13 @@ body {
   text-align: center;
 }
 
+/* PWA Optimizations */
+@media (display-mode: standalone) {
+  .app-header {
+    padding-top: calc(env(safe-area-inset-top) + 1rem);
+  }
+}
+
 /* Animations */
 @keyframes fadeInUp {
   from {
@@ -429,7 +496,7 @@ body {
   40% { transform: scale(1); opacity: 1; }
 }
 
-/* Responsive Design */
+/* Mobile Responsive Design */
 @media (max-width: 768px) {
   .main-content {
     padding: 1rem;
@@ -460,5 +527,43 @@ body {
   .result-image {
     width: 200px;
     height: 200px;
+  }
+  
+  .user-info .user-name {
+    display: none;
+  }
+  
+  .header-actions {
+    gap: 0.5rem;
+  }
+  
+  .camera-video {
+    max-height: 300px;
+  }
+  
+  .image-preview img {
+    max-height: 300px;
+  }
+}
+
+/* Touch optimizations for mobile */
+@media (hover: none) and (pointer: coarse) {
+  .action-btn:hover,
+  .camera-btn:hover,
+  .upload-btn:hover {
+    transform: none;
+  }
+  
+  .action-btn:active,
+  .camera-btn:active,
+  .upload-btn:active {
+    transform: scale(0.95);
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .user-avatar {
+    image-rendering: -webkit-optimize-contrast;
   }
 }
