@@ -21,6 +21,26 @@ function App() {
   const [isCameraMode, setIsCameraMode] = useState(false);
   const [stream, setStream] = useState(null);
   const [cameraError, setCameraError] = useState(null);
+  const [hasCameraDevice, setHasCameraDevice] = useState(true); // Assume true initially
+
+  // Check for camera availability on component mount
+  useEffect(() => {
+    const checkCameraAvailability = async () => {
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          setHasCameraDevice(videoDevices.length > 0);
+          console.log('Camera devices found:', videoDevices.length);
+        }
+      } catch (error) {
+        console.log('Could not check camera availability:', error);
+        setHasCameraDevice(true); // Assume camera is available if we can't check
+      }
+    };
+
+    checkCameraAvailability();
+  }, []);
 
   // Load history and auth data from local storage on component mount
   useEffect(() => {
