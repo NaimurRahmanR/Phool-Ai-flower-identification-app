@@ -621,10 +621,27 @@ function App() {
           <div className="camera-section">
             {cameraError ? (
               <div className="camera-error">
+                <div className="error-title">Camera Access Issue</div>
                 <p>{cameraError}</p>
-                <Button onClick={stopCamera} variant="outline">
-                  Back to Upload
-                </Button>
+                <div className="alternative-action">
+                  <Button 
+                    onClick={() => {
+                      stopCamera();
+                      fileInputRef.current?.click();
+                    }} 
+                    className="camera-alternative-btn"
+                  >
+                    <Upload size={18} />
+                    Try Upload Instead
+                  </Button>
+                  <Button 
+                    onClick={stopCamera} 
+                    variant="outline"
+                    style={{ marginLeft: '1rem' }}
+                  >
+                    Back to Main
+                  </Button>
+                </div>
               </div>
             ) : (
               <>
