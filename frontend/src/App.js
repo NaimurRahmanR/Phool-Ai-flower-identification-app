@@ -126,9 +126,12 @@ function App() {
       console.log('Attempting login redirect to:', authUrl);
       console.log('Current URL for localhost check:', currentUrl);
       
+      // TEMPORARY TEST: Force localhost behavior for testing
+      const isLocalhost = currentUrl.includes('localhost') || true; // Force true for testing
+      
       // For localhost, show deployment message
-      if (currentUrl.includes('localhost')) {
-        console.log('Localhost detected, showing error message');
+      if (isLocalhost) {
+        console.log('Localhost detected (or forced for testing), showing error message');
         setError('⚠️ Login requires HTTPS deployment. Click "Deploy" button in Emergent to test authentication with a live HTTPS URL.');
         return;
       }
