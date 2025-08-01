@@ -610,9 +610,11 @@ function App() {
                 onClick={startCamera}
                 className="action-btn camera-btn"
                 size="lg"
+                disabled={!hasCameraDevice}
+                title={!hasCameraDevice ? "No camera detected on this device" : "Take a photo with your camera"}
               >
                 <Camera size={24} />
-                Take Photo
+                {hasCameraDevice ? "Take Photo" : "No Camera Detected"}
               </Button>
               
               <Button 
@@ -625,6 +627,19 @@ function App() {
                 Upload Image
               </Button>
             </div>
+            
+            {!hasCameraDevice && (
+              <div style={{ 
+                marginTop: '1rem', 
+                padding: '1rem', 
+                backgroundColor: '#fef3e2', 
+                borderRadius: '10px',
+                color: '#92400e',
+                fontSize: '0.9rem'
+              }}>
+                💡 No camera detected. Use "Upload Image" to identify flowers from your photo gallery.
+              </div>
+            )}
             
             <input
               type="file"
