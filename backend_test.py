@@ -176,6 +176,16 @@ def main():
     print("\n📋 TEST 3: Invalid File Type Handling")
     invalid_success, invalid_response = tester.test_invalid_file_upload()
     
+    # Test 4: Auth endpoints
+    print("\n📋 TEST 4: Auth Profile Without Session")
+    auth_no_session_success, auth_response = tester.test_auth_profile_without_session()
+    
+    print("\n📋 TEST 5: User Profile Without Auth")
+    profile_no_auth_success, profile_response = tester.test_user_profile_without_auth()
+    
+    print("\n📋 TEST 6: Logout Without Session")
+    logout_success, logout_response = tester.test_logout_without_session()
+    
     # Print final results
     print("\n" + "=" * 50)
     print("📊 FINAL TEST RESULTS:")
