@@ -1,0 +1,43 @@
+{
+  "name": "phool-flower-identification",
+  "version": "1.0.0",
+  "description": "AI-powered flower identification app with PWA capabilities",
+  "main": "index.js",
+  "scripts": {
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && pip install -r requirements.txt",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "dev:frontend": "cd frontend && npm start",
+    "dev:backend": "cd backend && python server.py",
+    "build:frontend": "cd frontend && npm run build",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "cd backend && python backend_test.py",
+    "test:all": "npm run test:frontend && npm run test:backend",
+    "deploy": "npm run build:frontend && echo 'Ready for deployment'",
+    "start": "echo 'Use npm run dev:frontend and npm run dev:backend in separate terminals'"
+  },
+  "keywords": [
+    "flower-identification",
+    "ai",
+    "pwa",
+    "react",
+    "fastapi",
+    "mobile-app",
+    "plant-recognition",
+    "gemini-ai"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/phool-flower-identification.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/phool-flower-identification/issues"
+  },
+  "homepage": "https://github.com/yourusername/phool-flower-identification#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.8.0"
+  }
+}
