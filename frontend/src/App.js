@@ -123,24 +123,55 @@ function App() {
     try {
       const currentUrl = window.location.origin;
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(currentUrl)}`;
-      console.log('Redirecting to:', authUrl);
+      console.log('Attempting login redirect to:', authUrl);
       
-      // Check if we can redirect
-      if (typeof window !== 'undefined') {
-        // For development/testing, show a friendly message
-        if (currentUrl.includes('localhost')) {
-          setError('Login functionality requires HTTPS deployment. Please deploy the app to test authentication.');
-          return;
-        }
-        
-        // Try to redirect
-        window.location.href = authUrl;
-      } else {
-        setError('Unable to redirect for login. Please try again.');
+      // For localhost, show deployment message
+      if (currentUrl.includes('localhost')) {
+        setError('⚠️ Login requires HTTPS deployment. Click "Deploy" button in Emergent to test authentication with a live HTTPS URL.');
+        return;
       }
+      
+      // Clear any previous errors
+      setError(null);
+      
+      // Try popup approach first (better for user experience)
+      try {
+        const popup = window.open(
+          authUrl,
+          'phool-login',
+          'width=500,height=600,scrollbars=yes,resizable=yes'
+        );
+        
+        if (popup) {
+          // Monitor popup for completion
+          const checkClosed = setInterval(() => {
+            if (popup.closed) {
+              clearInterval(checkClosed);
+              // Check for authentication success
+              window.location.reload();
+            }
+          }, 1000);
+          
+          // Fallback: close popup after 5 minutes
+          setTimeout(() => {
+            if (!popup.closed) {
+              popup.close();
+              clearInterval(checkClosed);
+              setError('Login timeout. Please try again.');
+            }
+          }, 300000);
+        } else {
+          throw new Error('Popup blocked');
+        }
+      } catch (popupError) {
+        console.log('Popup failed, trying direct redirect:', popupError);
+        // Fallback to direct redirect
+        window.location.href = authUrl;
+      }
+      
     } catch (error) {
-      console.error('Login redirect error:', error);
-      setError('Login error. Please try again or contact support.');
+      console.error('Login error:', error);
+      setError('Login failed. Please ensure popups are allowed and try again.');
     }
   };
 
